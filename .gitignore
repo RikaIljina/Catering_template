@@ -1,0 +1,5 @@
+.streamlit
+.venv
+.vscode
+cred
+service_account.json

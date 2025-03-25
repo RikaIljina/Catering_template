@@ -1,0 +1,13 @@
+{
+    "date": "1.1.2025",
+    "customer": "xxx",
+    "day_nr": 1,
+    "amount_guests": 25,
+    "meals": [
+        {"morning": "cbc", "portions": 25, "special": "2 veg"},
+        {"lunch": "cddbc", "portions": 25, "special": "2 veg"}
+
+    ],
+    "notes": "" 
+
+}
