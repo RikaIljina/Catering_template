@@ -72,12 +72,13 @@ def run():
                     color: black; # Expander content color
                 }
 
-                .st-key-SERV {
-                color: red;
+                [class*=st-key-SERV] {
+                margin-top: 1rem;
                 }
 
+                
                 [class*=special_food_result] * > input {
-                background: #c6ebce;
+                background: rgba(33, 195, 84, 0.1);
                 font-weight: bold;}
                 [class*=special_food_result] * > label  p {
                 font-weight: bold;}
@@ -88,6 +89,41 @@ def run():
 
                 table * {
                 font-size: 1.5rem !important;
+                }
+
+                .custom-info {
+                padding: 5px;
+                line-height: 1.6rem;
+                border-radius: 5px;
+                color: #183950;
+                background-color: rgba(186, 217, 240, 0.6);
+                }
+
+                .center-element {
+                padding: auto;
+                margin: auto;
+                }
+
+               /* div:has(> [class*=input_amount_special])  {
+                 margin: auto;
+                } */
+
+                [class*=input_amount_special] * {
+                 font-size: 1.5rem;
+                }
+
+                .special-entry-warning {
+                color: rgb(110, 89, 24);
+                background-color: rgba(255, 227, 18, 0.1);
+                font-weight: bold;
+                color: rgb(146, 108, 5);
+                padding: 1rem;
+                margin-bottom: 18px;
+                }
+
+                .stFormSubmitButton > button,
+                .stButton > button {
+                background-color: rgba(199, 199, 236, 0.3) !important;
                 }
 
                 </style>

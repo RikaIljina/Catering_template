@@ -146,35 +146,56 @@ def upd_results():
     pass
 
 
-def process_choice(df, df_type, df_filter_name, no_filter=False):
+# def process_choice(df, df_type, df_filter_name, no_filter=False):
+#     df_upd = show_df_with_checkboxes(
+#         df, f"choose_{df_type}", df_filter_name, no_filter)
+#     chosen_one = df_upd.loc[:, "choose"].idxmax()
+#    # st.write(chosen_one)
+#     if df_upd.loc[:, "choose"].max():   # shows true or false
+#         if df_upd.loc[:, "choose"].value_counts().get(True) > 1:
+#             st.write("unselect one!")
+#         st.write(df_upd.iloc[chosen_one, 1])
+#         st.session_state.result_dict["meals"]["middag"].update(
+#             {df_type: df_upd.iloc[chosen_one, 1]})
+
+def process_choice(daytime_checked, df, daytime, meal_type, col_name, df_filter_name, no_filter=False):
     df_upd = show_df_with_checkboxes(
-        df, f"choose_{df_type}", df_filter_name, no_filter)
-    chosen_one = df_upd.loc[:, "choose"].idxmax()
-    st.write(chosen_one)
-    if df_upd.loc[:, "choose"].max():   # shows true or false
+        df, f"choose_{meal_type}", df_filter_name, no_filter)
+   # st.write(chosen_one)
+    if len(df_upd) and df_upd.loc[:, "choose"].max():   # shows true or false
+        chosen_one = df_upd.loc[:, "choose"].idxmax()
         if df_upd.loc[:, "choose"].value_counts().get(True) > 1:
             st.write("unselect one!")
-        st.write(df_upd.iloc[chosen_one, 1])
-        st.session_state.result_dict["meals"]["middag"].update(
-            {df_type: df_upd.iloc[chosen_one, 1]})
+        if no_filter:
+            chosen_meal = df_upd.iloc[chosen_one][col_name]
+        else:
+            chosen_meal = df_upd[df_upd.loc[:, "idx_key"] == chosen_one].iloc[0][col_name]
+        st.write(chosen_meal)
+        if daytime_checked:    
+            if meal_type not in st.session_state.result_dict["meals"][daytime]:
+                st.session_state.result_dict["meals"][daytime][meal_type] = {"food": chosen_meal}
+            else:
+                st.session_state.result_dict["meals"][daytime][meal_type].update({"food": chosen_meal})
 
 def convert_time(time):
     return datetime.strptime(time, '%H:%M:%S')
 
-def input_main_info(daytime, key_char):
+def input_main_info(daytime_checked, daytime, key_char):
     default_times = {"l": [convert_time('11:00:00'), convert_time('12:00:00')],
                      "m": [convert_time('17:45:00'), convert_time('19:00:00')],}
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         guest_amount = st.number_input(
         "Antal personer:", value=st.session_state.guest_amount, format="%i", step=1,  key=f"guest_amount_{key_char}")
-        st.session_state.result_dict["meals"][daytime].update(
-            {"amount_guests": st.session_state[f"guest_amount_{key_char}"]})
+        if daytime_checked:
+            st.session_state.result_dict["meals"][daytime].update(
+                {"amount_guests": st.session_state[f"guest_amount_{key_char}"]})
     with col2:
         leave_bq = st.time_input("Avg. fr BriQ:", value=default_times[key_char][0], key=f"leave_bq_{key_char}")
     with col3:
         serve_time = st.time_input("Serveringstid:", value=default_times[key_char][1], key=f"serve_time_{key_char}")
-        st.session_state.result_dict["meals"][daytime].update({"leave_bq": st.session_state[f"leave_bq_{key_char}"],
+        if daytime_checked:
+                st.session_state.result_dict["meals"][daytime].update({"leave_bq": st.session_state[f"leave_bq_{key_char}"],
                                                                "serve_time": st.session_state[f"serve_time_{key_char}"]})
 
 
@@ -184,8 +205,8 @@ def input_special(daytime, meal_type, key_char):
     if not st.session_state.result_dict.get("allergies"):
         return
 
-    if not st.session_state.result_dict["meals"][daytime].get("amount_special"):
-        st.session_state.result_dict["meals"][daytime]["amount_special"] = len(st.session_state.result_dict["allergies"])
+    if not st.session_state.result_dict["meals"][daytime][meal_type].get("amount_special"):
+        st.session_state.result_dict["meals"][daytime][meal_type]["amount_special"] = len(st.session_state.result_dict["allergies"])
 
  #   with st.form(f"{daytime}_{key_char}_specialkost", clear_on_submit=True):
         # if "allergies" in st.session_state.result_dict:
@@ -238,9 +259,10 @@ def input_special(daytime, meal_type, key_char):
 
     with col_df_2:
         st.write("Sammanfattning:")
-        col_am1, col_am2 = st.columns([0.7, 0.3])
+        col_am1, col_am2, _ = st.columns([0.6, 0.3, 0.1])
         col_am1.info(f"Personer med specialkost för {daytime} {meal_type}: ")
-        new_special = col_am2.number_input(label=f"Personer med specialkost för {daytime} {meal_type}:", value=len(st.session_state.result_dict["allergies"]), key=f"input_amount_special_{key_char}", label_visibility="collapsed")
+        with col_am2:
+            new_special = st.number_input(label=f"Personer med specialkost för {daytime} {meal_type}:", value=len(st.session_state.result_dict["allergies"]), key=f"input_amount_special_{key_char}", label_visibility="collapsed")
 
         allerg_sum_cont = st.empty()
         with allerg_sum_cont:
@@ -257,15 +279,15 @@ def input_special(daytime, meal_type, key_char):
         save_allerg = col_btn_1.button("Spara", key=f"save_special_{daytime}_{key_char}")
         reset_button = col_btn_2.button("Reset", key=f"reset_special_{daytime}_{key_char}")
     if save_allerg:
-        update_allergy_summary(daytime, new_special, st.session_state["sum_df_upd"])
-        st.success("Sparad!")
+        update_allergy_summary(daytime, meal_type, new_special, st.session_state["sum_df_upd"])
+        col_btn_1.success("Sparad!")
 
     if reset_button:
         st.session_state["de_key"] = str(uuid.uuid4())
         allerg_sum_cont.empty()
         with allerg_sum_cont:
             st.session_state["sum_df_upd"] = show_allerg_summary(st.session_state["summary_allerg"], f"{daytime}_{key_char}_{st.session_state["de_key"]}")
-            update_allergy_summary(daytime, new_special, st.session_state["sum_df_upd"])
+            update_allergy_summary(daytime, meal_type, new_special, st.session_state["sum_df_upd"])
 
     st.write("##### Urval specialkost:")
     #special_food_list = pd.DataFrame({"entry": [e for e in st.session_state.result_dict["meals"][daytime]["special"].values()]})
@@ -274,38 +296,54 @@ def input_special(daytime, meal_type, key_char):
         for x, e in enumerate(st.session_state.result_dict["meals"][daytime]["special"].values()):
             with st.container():
                 col_meal_1, col_meal_2, col_meal_3 = st.columns([0.4, 0.1, 0.5])
-                spec_ok = col_meal_2.checkbox("OK", key=f'spec_food_ok_{key_char}_{x}')
+                spec_ok = col_meal_2.checkbox("Klar", key=f'spec_food_ok_{key_char}_{x}')
                 if spec_ok:
                     col_meal_1.success(f"-  {e}", icon="✅")
                 else:
-                    col_meal_1.warning(f"-  {e}", icon="⚠️")
-                col_meal_3.info(st.session_state.result_dict["meals"][daytime][meal_type])   # TODO: check if salads included!!!
-            if not st.session_state.result_dict["meals"][daytime].get("special_food"):
-                st.session_state.result_dict["meals"][daytime]["special_food"] = {e: []}
+                    col_meal_1.markdown(f"<div class='special-entry-warning'>⚠️  {e}</div>", unsafe_allow_html=True)
+                if meal_type in st.session_state.result_dict["meals"][daytime]:
+                    if daytime == "lunch" and "salads" in st.session_state.result_dict["meals"][daytime]:
+                        salad_str = f"<br>{st.session_state.result_dict["meals"][daytime]["salads"]}"
+                    else:
+                        salad_str = ""
+                    col_meal_3.markdown(f"<div class='custom-info'>{st.session_state.result_dict["meals"][daytime][meal_type].get("food", "[Ingen maträtt vald]")}{salad_str}</div>", unsafe_allow_html=True)
+                    
+                sf_result = st.empty()
+
+
+            if not st.session_state.result_dict["meals"][daytime][meal_type].get("special_food"):
+                st.session_state.result_dict["meals"][daytime][meal_type]["special_food"] = {e: []}
             else:
-                if not st.session_state.result_dict["meals"][daytime]["special_food"].get(e):
-                    st.session_state.result_dict["meals"][daytime]["special_food"][e] = []
+                if not st.session_state.result_dict["meals"][daytime][meal_type]["special_food"].get(e):
+                    st.session_state.result_dict["meals"][daytime][meal_type]["special_food"][e] = []
            # st.dataframe(show_special_selection(x))
             with st.form(key=f"form_special_selection_{key_char}_{x}", clear_on_submit=True):
-                col_s1, col_s2, col_s3, col_s4 = st.columns(4)
+                col_s1, col_s2, col_s3, col_s4 = st.columns([0.3, 0.3, .3, 0.1])
                 with col_s1:
-                    hur = ", ".join(list(st.multiselect("Hur:", ['glutenfri', 'laktosfri', 'vegan'], key=f'spec_food_select_adj_{key_char}_{x}'))).strip()
+                    hur = ", ".join(list(st.multiselect("Hur:",  ['glutenfri', 'laktosfri', 'vegan'], placeholder="Glutenfri...", label_visibility='collapsed', key=f'spec_food_select_adj_{key_char}_{x}'))).strip()
                 with col_s2:
-                    vad = ", ".join(list(st.multiselect("Vad:", ['biff', 'sås'], key=f'spec_food_select_noun_{key_char}_{x}'))).strip()
+                    vad = ", ".join(list(st.multiselect("Vad:", ['biff', 'sås'], placeholder="biff...", label_visibility='collapsed', key=f'spec_food_select_noun_{key_char}_{x}'))).strip()
                 with col_s3:
-                    extra = str(st.text_input("Extra:", key=f'spec_food_select_free_{key_char}_{x}')).strip()
+                    extra = str(st.text_input("Extra:", label_visibility='collapsed', placeholder="Fritext", key=f'spec_food_select_free_{key_char}_{x}')).strip()
                 with col_s4:
                     if st.form_submit_button("Spara"):
-                        st.session_state.result_dict["meals"][daytime]["special_food"][e].append(" ".join([hur, vad, extra]).strip())
+                        st.session_state.result_dict["meals"][daytime][meal_type]["special_food"][e].append(" ".join([hur, vad, extra]).strip())
                         #st.dataframe(pd.DataFrame(st.session_state["special_food"], index=range(len(st.session_state["special_food"]))).T)
-            st.text_input(f"Vald kost till {e}:", value="; ".join(st.session_state.result_dict["meals"][daytime]["special_food"][e]), key=f"special_food_result_{key_char}_{x}")
-            updd = st.button("Updattera", key=f"special_food_result_upd_{key_char}_{x}")
+            spec_food_result = st.text_input(f"Vald kost till {e}:", value="; ".join(st.session_state.result_dict["meals"][daytime][meal_type]["special_food"][e]), key=f"special_food_result_{key_char}_{x}")
+            if not spec_food_result:
+                sf_result.error("... specialkost ej vald ...",)
+            elif spec_ok:
+                sf_result.empty()
+            else:
+                sf_result.warning("... urval av specialkost påbörjat ...")
+
+            updd = st.button("Uppdatera", key=f"special_food_result_upd_{key_char}_{x}")
             if updd:
                 st.success("Uppdaterad!")
                 if st.session_state[f"special_food_result_{key_char}_{x}"] == "":
-                    st.session_state.result_dict["meals"][daytime]["special_food"][e] = ""
+                    st.session_state.result_dict["meals"][daytime][meal_type]["special_food"][e] = ""
                 else:
-                    st.session_state.result_dict["meals"][daytime]["special_food"][e] = str(st.session_state[f"special_food_result_{key_char}_{x}"]).strip().split("; ")
+                    st.session_state.result_dict["meals"][daytime][meal_type]["special_food"][e] = str(st.session_state[f"special_food_result_{key_char}_{x}"]).strip().split("; ")
             st.divider()
 
 
@@ -315,13 +353,13 @@ def show_allerg_summary(summary_allerg, qkey):
         sum_df_upd = show_editable_df(sum_df, f"choose_allerg", f"summary_allerg_{qkey}", no_filter=True, allow_delete=True)
         return sum_df_upd
 
-def update_allergy_summary(daytime, new_special, sum_df_upd):
-    st.session_state.result_dict["meals"][daytime]["amount_special"] = new_special
+def update_allergy_summary(daytime, meal_type, new_special, sum_df_upd):
+    st.session_state.result_dict["meals"][daytime][meal_type]["amount_special"] = new_special
         # Check if allergy summary entry exists in special_food and delete those deleted here:
-    if st.session_state.result_dict["meals"][daytime].get("special_food"):
-        for e in list(st.session_state.result_dict["meals"][daytime]["special_food"].keys()):
+    if st.session_state.result_dict["meals"][daytime][meal_type].get("special_food"):
+        for e in list(st.session_state.result_dict["meals"][daytime][meal_type]["special_food"].keys()):
             if e not in list(sum_df_upd.loc[:, "entry"]):
-                st.session_state.result_dict["meals"][daytime]["special_food"].pop(e)
+                st.session_state.result_dict["meals"][daytime][meal_type]["special_food"].pop(e)
 #            for idx, entry in zip(list(sum_df_upd.index), list(sum_df_upd.loc[:, "entry"])):
     st.session_state.result_dict["meals"][daytime]["special"] = {idx: entry for idx, entry in zip(list(sum_df_upd.index), list(sum_df_upd.loc[:, "entry"]))}
     
